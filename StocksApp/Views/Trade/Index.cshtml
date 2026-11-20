@@ -1,0 +1,87 @@
+﻿@using StocksApp.Models
+@model StockTrade
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="~/CSS/StyleSheet.css" rel="stylesheet" />
+    <title>Stock Trading</title>
+</head>
+<body>
+    <main class="page-content">
+        <section class="box trading-panel">
+            <div id="stock-price-panel" class="stock">
+                <h1 class="stock-title">@Model.StockName</h1>
+                <p class="text-grey">@Model.StockSymbol</p>
+
+                <p class="mt">
+                    <span class="text-grey">Current price</span><br />
+                    <span id="stock-price" class="stock-price">
+                        @Model.Price.ToString("F2")
+                    </span>
+                </p>
+
+                <input type="hidden" id="stock-symbol" value="@Model.StockSymbol" />
+            </div>
+        </section>
+    </main>
+
+    <script>
+            (() => {
+                const stockSymbol = document.getElementById("stock-symbol").value;
+                const priceElement = document.getElementById("stock-price");
+                const token = @Json.Serialize(Configuration["ApiKey"]);
+
+                if (!stockSymbol || !token) {
+                    console.error("Finnhub API key or stock symbol is missing.");
+                    return;
+                }
+
+                const socket = new WebSocket(
+                    `wss://ws.finnhub.io?token=${encodeURIComponent(token)}`
+                );
+
+                let latestTradeTime = 0;
+
+                socket.addEventListener("open", () => {
+                    socket.send(JSON.stringify({
+                        type: "subscribe",
+                        symbol: stockSymbol
+                    }));
+                });
+
+                socket.addEventListener("message", (event) => {
+                    const message = JSON.parse(event.data);
+
+                    if (message.type !== "trade" || !Array.isArray(message.data)) {
+                        return;
+                    }
+
+                    for (const trade of message.data) {
+                        if (trade.s === stockSymbol &&
+                            Number.isFinite(trade.p) &&
+                            Number.isFinite(trade.t) &&
+                            trade.t >= latestTradeTime) {
+                            latestTradeTime = trade.t;
+                            priceElement.textContent = trade.p.toFixed(2);
+                        }
+                    }
+                });
+
+                window.addEventListener("pagehide", () => {
+                    if (socket.readyState === WebSocket.OPEN) {
+                        socket.send(JSON.stringify({
+                            type: "unsubscribe",
+                            symbol: stockSymbol
+                        }));
+                    }
+
+                    socket.close();
+                });
+            })();
+    </script>
+</body>
+</html>

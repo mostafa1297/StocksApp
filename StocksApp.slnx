@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Entities/Entities.csproj" />
+  <Project Path="Services/Services.csproj" />
+  <Project Path="ServicesConstracts/ServicesConstracts.csproj" />
+  <Project Path="StocksApp/StocksApp.csproj" />
+  <Project Path="Tests/Tests.csproj" />
+</Solution>
